@@ -1,11 +1,13 @@
 # Python virtual environment and cache
 backend/.venv/
-backend/__pycache__/
+__pycache__/
+
 backend/*.pyc
 backend/*.pyo
 backend/*.pyd
 backend/.env
 backend/app.db
+
 
 # Node.js dependencies and build output
 frontend/node_modules/
@@ -20,6 +22,7 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
+
 
 # Editor directories and files
 .vscode/

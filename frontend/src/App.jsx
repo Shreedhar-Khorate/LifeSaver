@@ -1,122 +1,157 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
-import './App.css'
+import { useState } from 'react';
+import { BrowserRouter, Routes, Route, NavLink, useNavigate } from 'react-router-dom';
+import './App.css';
 
-function App() {
-  const [count, setCount] = useState(0)
+import Dashboard from './pages/Dashboard';
+import AddTask from './pages/AddTask';
+import Schedule from './pages/Schedule';
+import Rescue from './pages/Rescue';
+
+import { seedDemo, resetData } from './services/api';
+
+function AppLayout() {
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [seeding, setSeeding] = useState(false);
+  const [toast, setToast] = useState(null);
+  const navigate = useNavigate();
+
+  const showToast = (message, type = 'success') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3000);
+  };
+
+  const handleSeed = async () => {
+    setSeeding(true);
+    try {
+      await seedDemo();
+      showToast('🚨 7 PM Crisis loaded! Check the dashboard.');
+      navigate('/');
+      // Force page reload to refresh dashboard
+      window.location.reload();
+    } catch (err) {
+      showToast(`❌ Seed failed: ${err.message}`, 'error');
+    } finally {
+      setSeeding(false);
+    }
+  };
+
+  const handleReset = async () => {
+    try {
+      await resetData();
+      showToast('🔄 All data cleared!');
+      window.location.reload();
+    } catch (err) {
+      showToast(`❌ Reset failed: ${err.message}`, 'error');
+    }
+  };
+
+  const navItems = [
+    { path: '/', label: 'Dashboard', icon: '📊' },
+    { path: '/add', label: 'Add Task', icon: '➕' },
+    { path: '/schedule', label: 'Schedule', icon: '📅' },
+    { path: '/rescue', label: 'Rescue Mode', icon: '🚨' },
+  ];
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.jsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
+    <div className="app-layout">
+      {/* Mobile Header */}
+      <div className="mobile-header">
+        <button className="menu-toggle" onClick={() => setSidebarOpen(true)}>
+          ☰
         </button>
-      </section>
+        <span style={{ fontWeight: 700, fontSize: '1rem' }}>
+          <span className="text-gradient">Life Saver</span>
+        </span>
+        <div style={{ width: '2rem' }} />
+      </div>
 
-      <div className="ticks"></div>
+      {/* Sidebar Overlay (mobile) */}
+      <div
+        className={`sidebar-overlay ${sidebarOpen ? 'open' : ''}`}
+        onClick={() => setSidebarOpen(false)}
+      />
 
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
+      {/* Sidebar */}
+      <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
+        <div className="sidebar-header">
+          <div className="sidebar-logo">
+            <span className="logo-icon">🚨</span>
+            <div className="logo-text">
+              <span>Life Saver</span>
+            </div>
+          </div>
         </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
 
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+        <nav className="sidebar-nav">
+          <div className="nav-section-label">Navigation</div>
+          {navItems.map(({ path, label, icon }) => (
+            <NavLink
+              key={path}
+              to={path}
+              end={path === '/'}
+              className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
+              onClick={() => setSidebarOpen(false)}
+            >
+              <span className="nav-icon">{icon}</span>
+              {label}
+            </NavLink>
+          ))}
+        </nav>
+
+        <div className="sidebar-footer">
+          <div className="nav-section-label" style={{ padding: '0 0.25rem 0.5rem' }}>Demo Controls</div>
+          <button
+            className="seed-btn"
+            onClick={handleSeed}
+            disabled={seeding}
+            style={{ marginBottom: '0.5rem' }}
+          >
+            {seeding ? (
+              <><span className="spinner" style={{ width: '0.875rem', height: '0.875rem', borderTopColor: 'var(--accent-red)' }} /> Loading...</>
+            ) : (
+              <>🚨 Load 7PM Crisis</>
+            )}
+          </button>
+          <button
+            className="seed-btn"
+            onClick={handleReset}
+            style={{
+              background: 'var(--bg-glass)',
+              color: 'var(--text-muted)',
+              borderColor: 'var(--border-subtle)',
+            }}
+          >
+            🔄 Reset All Data
+          </button>
+        </div>
+      </aside>
+
+      {/* Main Content */}
+      <main className="main-content">
+        <Routes>
+          <Route path="/" element={<Dashboard />} />
+          <Route path="/add" element={<AddTask />} />
+          <Route path="/schedule" element={<Schedule />} />
+          <Route path="/rescue" element={<Rescue />} />
+        </Routes>
+      </main>
+
+      {/* Global Toast */}
+      {toast && (
+        <div className={`toast ${toast.type === 'error' ? 'toast-error' : 'toast-success'}`}>
+          {toast.message}
+        </div>
+      )}
+    </div>
+  );
 }
 
-export default App
+function App() {
+  return (
+    <BrowserRouter>
+      <AppLayout />
+    </BrowserRouter>
+  );
+}
+
+export default App;
