@@ -100,12 +100,13 @@ class LLMOrchestrator:
         return self._parse_response(raw)
 
     def _build_prompt(self, agent: AgentType, payload: dict) -> str:
-        prompts = {
-            AgentType.PARSER: PARSER_PROMPT.format(**payload),
-            AgentType.DECOMPOSER: DECOMPOSER_PROMPT.format(**payload),
-            AgentType.ADVISOR: ADVISOR_PROMPT.format(**payload),
-        }
-        return prompts[agent]
+        if agent == AgentType.PARSER:
+            return PARSER_PROMPT.format(**payload)
+        elif agent == AgentType.DECOMPOSER:
+            return DECOMPOSER_PROMPT.format(**payload)
+        elif agent == AgentType.ADVISOR:
+            return ADVISOR_PROMPT.format(**payload)
+        return ""
 
     async def _call_groq(self, prompt: str) -> str:
         # Wrap the synchronous groq client call in a thread pool to keep it async-friendly
@@ -136,12 +137,48 @@ class LLMOrchestrator:
 
     def _parse_response(self, raw: str) -> dict:
         """Strip markdown fences, extract JSON safely."""
-        raw = re.sub(r"```json|```", "", raw).strip()
-        start = min(
-            raw.find("{") if "{" in raw else len(raw),
-            raw.find("[") if "[" in raw else len(raw)
-        )
-        return json.loads(raw[start:])
+        logger.info(f"Raw LLM Response:\n{raw}")
+        raw = re.sub(r"```(json|python|)?", "", raw, flags=re.IGNORECASE).replace("```", "").strip()
+
+        # Try to find the last complete JSON block by matching brackets from the end
+        end = max(raw.rfind("}"), raw.rfind("]"))
+        if end != -1:
+            closing_char = raw[end]
+            opening_char = "{" if closing_char == "}" else "["
+            
+            open_count = 0
+            for i in range(end, -1, -1):
+                if raw[i] == closing_char:
+                    open_count += 1
+                elif raw[i] == opening_char:
+                    open_count -= 1
+                    
+                if open_count == 0:
+                    json_str = raw[i:end+1]
+                    try:
+                        return json.loads(json_str)
+                    except json.JSONDecodeError:
+                        break # Not valid JSON, fallback
+
+        # Fallback to simple extraction
+        start_obj = raw.find("{")
+        start_arr = raw.find("[")
+        if start_obj == -1: start_obj = len(raw)
+        if start_arr == -1: start_arr = len(raw)
+        start = min(start_obj, start_arr)
+        
+        if start == len(raw):
+            logger.warning("No JSON brackets found in response.")
+            return {}
+            
+        end = raw.rfind("}") if start == start_obj else raw.rfind("]")
+        json_str = raw[start:end+1] if end != -1 else raw[start:]
+        
+        try:
+            return json.loads(json_str)
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to parse JSON string: {json_str}")
+            raise e
 
     def _mock_run(self, agent: AgentType, payload: dict) -> dict:
         """Fallback mock responses to keep app functional in offline/no-key states."""
