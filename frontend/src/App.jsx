@@ -10,9 +10,9 @@ import Rescue from './pages/Rescue';
 import { seedDemo, resetData } from './services/api';
 
 function AppLayout() {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [seeding, setSeeding] = useState(false);
   const [toast, setToast] = useState(null);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const navigate = useNavigate();
 
   const showToast = (message, type = 'success') => {
@@ -26,7 +26,6 @@ function AppLayout() {
       await seedDemo();
       showToast('🚨 7 PM Crisis loaded! Check the dashboard.');
       navigate('/');
-      // Force page reload to refresh dashboard
       window.location.reload();
     } catch (err) {
       showToast(`❌ Seed failed: ${err.message}`, 'error');
@@ -49,91 +48,70 @@ function AppLayout() {
     { path: '/', label: 'Dashboard', icon: '📊' },
     { path: '/add', label: 'Add Task', icon: '➕' },
     { path: '/schedule', label: 'Schedule', icon: '📅' },
-    { path: '/rescue', label: 'Rescue Mode', icon: '🚨' },
+    { path: '/rescue', label: 'Rescue', icon: '🚨' },
   ];
 
   return (
-    <div className="app-layout">
-      {/* Mobile Header */}
-      <div className="mobile-header">
-        <button className="menu-toggle" onClick={() => setSidebarOpen(true)}>
-          ☰
-        </button>
-        <span style={{ fontWeight: 700, fontSize: '1rem' }}>
-          <span className="text-gradient">Life Saver</span>
-        </span>
-        <div style={{ width: '2rem' }} />
-      </div>
-
-      {/* Sidebar Overlay (mobile) */}
-      <div
-        className={`sidebar-overlay ${sidebarOpen ? 'open' : ''}`}
-        onClick={() => setSidebarOpen(false)}
-      />
-
-      {/* Sidebar */}
-      <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
-        <div className="sidebar-header">
-          <div className="sidebar-logo">
+    <div className="bento-app-layout">
+      {/* Top Navigation Bar */}
+      <header className="top-nav">
+        <div className="nav-container">
+          <div className="nav-brand">
             <span className="logo-icon">🚨</span>
-            <div className="logo-text">
-              <span>Life Saver</span>
-            </div>
+            <span className="logo-text">Life Saver</span>
           </div>
-        </div>
 
-        <nav className="sidebar-nav">
-          <div className="nav-section-label">Navigation</div>
-          {navItems.map(({ path, label, icon }) => (
-            <NavLink
-              key={path}
-              to={path}
-              end={path === '/'}
-              className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
-              onClick={() => setSidebarOpen(false)}
-            >
-              <span className="nav-icon">{icon}</span>
-              {label}
-            </NavLink>
-          ))}
-        </nav>
-
-        <div className="sidebar-footer">
-          <div className="nav-section-label" style={{ padding: '0 0.25rem 0.5rem' }}>Demo Controls</div>
-          <button
-            className="seed-btn"
-            onClick={handleSeed}
-            disabled={seeding}
-            style={{ marginBottom: '0.5rem' }}
+          <button 
+            className="mobile-menu-btn"
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
           >
-            {seeding ? (
-              <><span className="spinner" style={{ width: '0.875rem', height: '0.875rem', borderTopColor: 'var(--accent-red)' }} /> Loading...</>
-            ) : (
-              <>🚨 Load 7PM Crisis</>
-            )}
+            ☰
           </button>
-          <button
-            className="seed-btn"
-            onClick={handleReset}
-            style={{
-              background: 'var(--bg-glass)',
-              color: 'var(--text-muted)',
-              borderColor: 'var(--border-subtle)',
-            }}
-          >
-            🔄 Reset All Data
-          </button>
-        </div>
-      </aside>
 
-      {/* Main Content */}
-      <main className="main-content">
-        <Routes>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/add" element={<AddTask />} />
-          <Route path="/schedule" element={<Schedule />} />
-          <Route path="/rescue" element={<Rescue />} />
-        </Routes>
+          <nav className={`nav-links ${mobileMenuOpen ? 'open' : ''}`}>
+            {navItems.map(({ path, label, icon }) => (
+              <NavLink
+                key={path}
+                to={path}
+                end={path === '/'}
+                className={({ isActive }) => `top-nav-link ${isActive ? 'active' : ''}`}
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                <span className="nav-icon">{icon}</span>
+                <span className="nav-label">{label}</span>
+              </NavLink>
+            ))}
+            
+            <div className="nav-controls">
+              <button 
+                className="btn btn-ghost btn-sm" 
+                onClick={handleReset} 
+                title="Reset Data"
+              >
+                🔄 Reset
+              </button>
+              <button 
+                className="btn btn-primary btn-sm" 
+                onClick={handleSeed} 
+                disabled={seeding}
+              >
+                {seeding ? 'Loading...' : 'Load Crisis Demo'}
+              </button>
+            </div>
+          </nav>
+        </div>
+      </header>
+
+      {/* Main Content Area */}
+      <main className="bento-main-content">
+        <div className="content-container">
+          <Routes>
+            <Route path="/" element={<Dashboard />} />
+            <Route path="/add" element={<AddTask />} />
+            <Route path="/schedule" element={<Schedule />} />
+            <Route path="/rescue" element={<Rescue />} />
+          </Routes>
+        </div>
       </main>
 
       {/* Global Toast */}
