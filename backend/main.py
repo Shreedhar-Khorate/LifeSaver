@@ -4,8 +4,8 @@ Multi-Agent LLM Orchestration for deadline crisis management.
 """
 import sys
 import os
+from contextlib import asynccontextmanager
 
-# Add backend directory to path for module imports
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from fastapi import FastAPI
@@ -22,10 +22,14 @@ from routes.rescue import router as rescue_router
 from routes.dashboard import router as dashboard_router
 from routes.debug import router as debug_router
 
+
+
+
 app = FastAPI(
     title="Life Saver API",
     description="Multi-Agent LLM Orchestration for deadline crisis management",
     version="1.0.0",
+    lifespan=lifespan,
 )
 
 # Configure CORS
@@ -48,20 +52,6 @@ app.include_router(scheduler_router)
 app.include_router(rescue_router)
 app.include_router(dashboard_router)
 app.include_router(debug_router)
-
-
-@app.on_event("startup")
-async def startup():
-    """Create tables and seed demo user on startup."""
-    Base.metadata.create_all(bind=engine)
-
-    db = SessionLocal()
-    try:
-        if not db.query(User).filter_by(id=1).first():
-            db.add(User(id=1, name="Demo User"))
-            db.commit()
-    finally:
-        db.close()
 
 
 @app.get("/")
