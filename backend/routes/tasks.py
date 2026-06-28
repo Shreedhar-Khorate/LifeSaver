@@ -3,7 +3,7 @@ Tasks API — CRUD + AI Parse + Decompose
 """
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from datetime import datetime
+from datetime import datetime, timezone
 
 from database import get_db
 from models import Task, Subtask
@@ -28,7 +28,7 @@ def list_tasks(status: str = None, db: Session = Depends(get_db)):
     tasks = query.all()
 
     # Recalculate priority scores
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     for task in tasks:
         task.priority_score = priority_score(task, now)
     db.commit()
@@ -96,6 +96,11 @@ def update_task(task_id: int, task_in: TaskUpdate, db: Session = Depends(get_db)
     update_data = task_in.model_dump(exclude_unset=True)
     for key, value in update_data.items():
         setattr(task, key, value)
+        if key == "status":
+            if value == "completed":
+                task.completed_at = datetime.now(timezone.utc)
+            else:
+                task.completed_at = None
 
     task.priority_score = priority_score(task)
     db.commit()

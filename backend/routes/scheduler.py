@@ -3,7 +3,7 @@ Scheduler API — Generate and view today's schedule
 """
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
-from datetime import datetime
+from datetime import datetime, timezone
 
 from database import get_db
 from models import Task, Schedule, User
@@ -17,7 +17,7 @@ router = APIRouter(prefix="/api/schedule", tags=["Schedule"])
 @router.get("/today", response_model=list[ScheduleSlotResponse])
 def get_today_schedule(db: Session = Depends(get_db)):
     """Return today's saved schedule slots."""
-    today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
     today_end = today_start.replace(hour=23, minute=59, second=59)
 
     slots = (
@@ -60,7 +60,7 @@ def generate_schedule(req: ScheduleGenerateRequest, db: Session = Depends(get_db
     slots = build(ranked, req.available_hours)
 
     # Clear old schedule for today
-    today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
     today_end = today_start.replace(hour=23, minute=59, second=59)
     db.query(Schedule).filter(
         Schedule.start_time >= today_start,

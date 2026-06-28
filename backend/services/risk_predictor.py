@@ -2,7 +2,7 @@
 Risk Predictor — Pure Python, no AI.
 Calculates overall risk score and success probability.
 """
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 def calculate(tasks, now=None):
@@ -10,7 +10,7 @@ def calculate(tasks, now=None):
     Calculate aggregate risk score (0–100) from pending tasks.
     Higher = more danger of missing deadlines.
     """
-    now = now or datetime.utcnow()
+    now = now or datetime.now(timezone.utc)
     score = 0
 
     for t in tasks:

@@ -2,7 +2,7 @@
 Scheduler Engine — Pure Python, no AI.
 Packs priority-ranked tasks into available time slots.
 """
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 
 def build(tasks, available_hours: float, start: datetime = None):
@@ -17,7 +17,7 @@ def build(tasks, available_hours: float, start: datetime = None):
     Returns:
         list of slot dicts: {task_id, task_name, start_time, end_time, hours}
     """
-    start = start or datetime.now()
+    start = start or datetime.now(timezone.utc)
     slots = []
     cursor = start
     remaining = available_hours

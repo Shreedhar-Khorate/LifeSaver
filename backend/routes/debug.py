@@ -3,7 +3,7 @@ Debug API — Seed demo data and reset state
 """
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from database import get_db
 from models import Task, Subtask, Schedule, User
@@ -26,7 +26,7 @@ def seed_demo(db: Session = Depends(get_db)):
     db.query(Task).delete()
     db.commit()
 
-    now = datetime.now()
+    now = datetime.now(timezone.utc)
 
     # Demo tasks — the "7 PM Crisis"
     tasks_data = [

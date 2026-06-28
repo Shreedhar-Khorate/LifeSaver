@@ -3,7 +3,7 @@ Dashboard API — Aggregated stats for the main view
 """
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from database import get_db
 from models import Task, User
@@ -56,7 +56,7 @@ async def get_dashboard(db: Session = Depends(get_db)):
             tip = "Focus on your highest-priority task first."
 
     # Upcoming deadlines (next 48 hours)
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     upcoming = [
         t for t in pending
         if t.deadline and t.deadline <= now + timedelta(hours=48)

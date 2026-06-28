@@ -37,17 +37,10 @@ def analyze(completed_tasks: list) -> str:
 
 
 def _was_late(task) -> bool:
-    """Check if a task was completed after its deadline."""
-    if not task.deadline:
+    """Check if a task was completed after its deadline using actual completion time."""
+    if not task.deadline or not task.completed_at:
         return False
-    if not task.created_at:
-        return False
-    # If status is completed, compare the timeline
-    # A task is "late" if its estimated_hours exceed the time between creation and deadline
-    from datetime import datetime
-    now = datetime.utcnow()
-    hours_given = (task.deadline - task.created_at).total_seconds() / 3600
-    return task.estimated_hours > hours_given * 0.8
+    return task.completed_at > task.deadline
 
 
 def _avg_session_length(tasks) -> float:

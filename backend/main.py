@@ -21,8 +21,17 @@ from routes.scheduler import router as scheduler_router
 from routes.rescue import router as rescue_router
 from routes.dashboard import router as dashboard_router
 from routes.debug import router as debug_router
-
-
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    Base.metadata.create_all(bind=engine)
+    db = SessionLocal()
+    try:
+        if not db.query(User).filter_by(id=1).first():
+            db.add(User(id=1, name="Demo User"))
+            db.commit()
+    finally:
+        db.close()
+    yield
 
 
 app = FastAPI(
