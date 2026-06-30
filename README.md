@@ -15,7 +15,7 @@
 > * **Frontend Client**: [https://life-saver-tau.vercel.app/](https://life-saver-tau.vercel.app/)  
 > * **FastAPI Backend API**: [https://lifesaver-backend-8vkw.onrender.com/](https://lifesaver-backend-8vkw.onrender.com/)  
 
-![LifeSaver Dashboard Mockup](C:/Users/Shreedhar%20Khorate/.gemini/antigravity-ide/brain/673422bf-ce8a-4d5b-8386-99db1dabfd8e/lifesaver_dashboard_mockup_1782801329038.png)
+
 
 ---
 
