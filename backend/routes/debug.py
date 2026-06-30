@@ -1,29 +1,57 @@
 """
 Debug API — Seed demo data and reset state
 """
-from fastapi import APIRouter, Depends
+import os
+from fastapi import APIRouter, Depends, HTTPException, Header
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta, timezone
 
 from database import get_db
 from models import Task, Subtask, Schedule, User
 from services.priority_engine import score as priority_score
+from services.auth import verify_token
 
 router = APIRouter(prefix="/api/debug", tags=["Debug"])
 
 
+def verify_debug_key(x_debug_key: str = Header(...)):
+    """Guard: requires X-Debug-Key header matching DEBUG_SECRET_KEY env var."""
+    expected = os.getenv("DEBUG_SECRET_KEY", "")
+    if not expected or x_debug_key != expected:
+        raise HTTPException(status_code=403, detail="Forbidden: invalid debug key")
+
+
 @router.post("/seed")
-def seed_demo(db: Session = Depends(get_db)):
+def seed_demo(
+    db: Session = Depends(get_db), 
+    _=Depends(verify_debug_key),
+    authorization: str = Header(None)
+):
     """
     Loads the "7 PM Crisis" state for demo:
     - 5 tasks, 3 overdue / near-deadline
     - Pre-decomposed subtasks
     - Creates a dramatic rescue scenario
     """
-    # Clear existing data
-    db.query(Subtask).delete()
-    db.query(Schedule).delete()
-    db.query(Task).delete()
+    user_id = 1
+    if authorization and authorization.startswith("Bearer "):
+        token = authorization.split(" ")[1]
+        decoded_id = verify_token(token)
+        if decoded_id:
+            user_id = decoded_id
+
+    # Clear existing data for this user
+    # Delete schedules
+    db.query(Schedule).filter(Schedule.user_id == user_id).delete()
+    
+    # Delete subtasks of tasks belonging to this user
+    user_tasks = db.query(Task).filter(Task.user_id == user_id).all()
+    user_task_ids = [t.id for t in user_tasks]
+    if user_task_ids:
+        db.query(Subtask).filter(Subtask.task_id.in_(user_task_ids)).delete()
+    
+    # Delete tasks for this user
+    db.query(Task).filter(Task.user_id == user_id).delete()
     db.commit()
 
     now = datetime.now(timezone.utc)
@@ -97,6 +125,7 @@ def seed_demo(db: Session = Depends(get_db)):
     created_tasks = []
     for data in tasks_data:
         task = Task(
+            user_id=user_id,
             task_name=data["task_name"],
             deadline=data["deadline"],
             importance=data["importance"],
@@ -119,7 +148,7 @@ def seed_demo(db: Session = Depends(get_db)):
         created_tasks.append(task)
 
     # Update user DNA to "last_minute" for dramatic demo
-    user = db.query(User).filter(User.id == 1).first()
+    user = db.query(User).filter(User.id == user_id).first()
     if user:
         user.dna_type = "last_minute"
         user.available_hours = 6.0
@@ -136,14 +165,33 @@ def seed_demo(db: Session = Depends(get_db)):
 
 
 @router.post("/reset")
-def reset_data(db: Session = Depends(get_db)):
+def reset_data(
+    db: Session = Depends(get_db), 
+    _=Depends(verify_debug_key),
+    authorization: str = Header(None)
+):
     """Clear all data and reseed with just the demo user."""
-    db.query(Subtask).delete()
-    db.query(Schedule).delete()
-    db.query(Task).delete()
+    user_id = 1
+    if authorization and authorization.startswith("Bearer "):
+        token = authorization.split(" ")[1]
+        decoded_id = verify_token(token)
+        if decoded_id:
+            user_id = decoded_id
+
+    # Clear schedules for user
+    db.query(Schedule).filter(Schedule.user_id == user_id).delete()
+    
+    # Clear subtasks
+    user_tasks = db.query(Task).filter(Task.user_id == user_id).all()
+    user_task_ids = [t.id for t in user_tasks]
+    if user_task_ids:
+        db.query(Subtask).filter(Subtask.task_id.in_(user_task_ids)).delete()
+        
+    # Clear tasks
+    db.query(Task).filter(Task.user_id == user_id).delete()
     db.commit()
 
-    user = db.query(User).filter(User.id == 1).first()
+    user = db.query(User).filter(User.id == user_id).first()
     if user:
         user.dna_type = "consistent"
         user.available_hours = 6.0

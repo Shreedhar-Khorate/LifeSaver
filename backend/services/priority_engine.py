@@ -14,7 +14,13 @@ def score(task, now=None):
         # No deadline → pure importance, no urgency penalty
         return round(importance * 0.70, 1)  # max 70
 
-    hours_left = max(0.1, (task.deadline - now).total_seconds() / 3600)
+    deadline = task.deadline
+    if deadline.tzinfo is None and now.tzinfo is not None:
+        deadline = deadline.replace(tzinfo=timezone.utc)
+    elif deadline.tzinfo is not None and now.tzinfo is None:
+        now = now.replace(tzinfo=timezone.utc)
+
+    hours_left = max(0.1, (deadline - now).total_seconds() / 3600)
     time_ratio = min(1.0, (task.estimated_hours or 1.0) / hours_left)
     urgency = max(0, min(100, 100 - hours_left))
     effort_risk = time_ratio * 100

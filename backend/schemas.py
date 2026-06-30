@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from datetime import datetime
 from typing import List, Optional
 
@@ -28,8 +28,7 @@ class SubtaskResponse(BaseModel):
     completed: bool
     order_index: int
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class TaskResponse(BaseModel):
@@ -43,14 +42,14 @@ class TaskResponse(BaseModel):
     status: str
     created_at: datetime
     subtasks: List[SubtaskResponse] = []
+    completion_tip: Optional[str] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # --- AI Parser Schemas ---
 class TaskParseRequest(BaseModel):
-    text: str
+    text: str = Field(..., min_length=3, max_length=2000)
 
 
 class ParsedTaskItem(BaseModel):
@@ -85,8 +84,7 @@ class ScheduleSlotResponse(BaseModel):
     hours: float
     is_rescued: bool = False
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # --- Rescue Schemas ---
@@ -119,3 +117,40 @@ class DashboardResponse(BaseModel):
     dna_label: str
     dna_tip: str = ""
     upcoming_deadlines: List[TaskResponse] = []
+
+
+# --- Auth & Profile Schemas ---
+class UserRegister(BaseModel):
+    name: str = Field(..., min_length=2, max_length=50)
+    email: str = Field(..., min_length=3, max_length=100)
+    password: str = Field(..., min_length=6, max_length=100)
+
+
+class UserLogin(BaseModel):
+    email: str
+    password: str
+
+
+class UserUpdate(BaseModel):
+    name: Optional[str] = None
+    available_hours: Optional[float] = Field(None, gt=0, le=24)
+    peak_hours: Optional[str] = None
+
+
+class AuthResponse(BaseModel):
+    token: str
+    user_id: int
+    name: str
+    email: str
+
+
+class UserProfileResponse(BaseModel):
+    id: int
+    name: str
+    email: Optional[str] = None
+    dna_type: str
+    available_hours: float
+    peak_hours: str
+
+    model_config = ConfigDict(from_attributes=True)
+

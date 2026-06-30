@@ -7,8 +7,10 @@ from database import Base
 class User(Base):
     __tablename__ = "users"
 
-    id              = Column(Integer, primary_key=True, default=1)
+    id              = Column(Integer, primary_key=True)
     name            = Column(String, default="Demo User")
+    email           = Column(String, unique=True, nullable=True) # nullable initially for migration
+    hashed_password = Column(String, nullable=True)             # nullable initially for migration
     dna_type        = Column(String, default="consistent")
     available_hours = Column(Float, default=6.0)
     peak_hours      = Column(String, default='["09:00-12:00","14:00-18:00"]')
@@ -30,6 +32,7 @@ class Task(Base):
     status          = Column(String, default="pending")    # pending / in_progress / completed / dropped
     created_at      = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     completed_at    = Column(DateTime(timezone=True), nullable=True)
+    completion_tip  = Column(String, nullable=True)
 
     user      = relationship("User",    back_populates="tasks")
     subtasks  = relationship("Subtask", back_populates="task", cascade="all, delete-orphan")

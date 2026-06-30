@@ -44,10 +44,10 @@ export default function Rescue() {
     try {
       const data = await runRescue(hoursRemaining);
       setRescueData(data);
-      showToast('🚨 Rescue Mode activated! Non-essentials dropped.');
+      showToast('Rescue Mode activated. Non-essentials dropped.');
     } catch (err) {
       setError(err.message);
-      showToast(`❌ ${err.message}`, 'error');
+      showToast(`Error: ${err.message}`, 'error');
     } finally {
       setRescuing(false);
     }
@@ -65,7 +65,7 @@ export default function Rescue() {
   return (
     <div className="animate-fade-in">
       <div className="page-header">
-        <h1>🚨 Rescue Mode</h1>
+        <h1>Rescue Mode</h1>
         <p className="page-subtitle">When time runs out, we cut the non-essentials and save your grade</p>
       </div>
 
@@ -110,14 +110,14 @@ export default function Rescue() {
             {rescuing ? (
               <><span className="spinner" /> Rescuing...</>
             ) : (
-              <>🚨 Rescue Me!</>
+              <>Rescue Me</>
             )}
           </button>
         </div>
 
         {!rescueData && (
           <p style={{ marginTop: '1rem', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-            💡 Make sure your tasks are decomposed first (from the Dashboard or Add Task page). Rescue Mode drops optional subtasks and focuses on what matters most.
+            <strong>ADVICE:</strong> Make sure your tasks are decomposed first (from the Dashboard or Add Task page). Rescue Mode drops optional subtasks and focuses on what matters most.
           </p>
         )}
       </div>
@@ -163,7 +163,7 @@ export default function Rescue() {
               boxShadow: 'var(--shadow-glow-green)',
             }}>
               <div style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--accent-green)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.75rem' }}>
-                After Rescue ✨
+                After Rescue
               </div>
               <SuccessGauge value={rescueData.after_success} size={140} label="After" />
             </div>
@@ -186,10 +186,10 @@ export default function Rescue() {
                 gap: '0.5rem',
                 marginBottom: '1rem',
               }}>
-                <span style={{ fontSize: '1.25rem' }}>✅</span>
+                <span style={{ fontSize: '0.85rem', color: 'var(--accent-green)', fontWeight: 'bold', letterSpacing: '0.05em' }}>FOCUS</span>
                 <div>
-                  <div style={{ fontWeight: 700, color: 'var(--accent-green)' }}>Focus On</div>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                  <div style={{ fontWeight: 700, color: 'var(--accent-green)', marginLeft: '0.5rem' }}>Core Tasks</div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginLeft: '0.5rem' }}>
                     {rescueData.core_hours}h of core work
                   </div>
                 </div>
@@ -226,10 +226,10 @@ export default function Rescue() {
                 gap: '0.5rem',
                 marginBottom: '1rem',
               }}>
-                <span style={{ fontSize: '1.25rem' }}>❌</span>
+                <span style={{ fontSize: '0.85rem', color: 'var(--accent-red)', fontWeight: 'bold', letterSpacing: '0.05em' }}>CUT</span>
                 <div>
-                  <div style={{ fontWeight: 700, color: 'var(--accent-red)' }}>Dropped</div>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                  <div style={{ fontWeight: 700, color: 'var(--accent-red)', marginLeft: '0.5rem' }}>Dropped Items</div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginLeft: '0.5rem' }}>
                     Non-essential items removed
                   </div>
                 </div>
@@ -273,7 +273,7 @@ export default function Rescue() {
               color: 'var(--text-secondary)',
               marginBottom: '2rem',
             }}>
-              🤖 <strong>AI Tip:</strong> {rescueData.tip}
+              <strong>AI TIP:</strong> {rescueData.tip}
             </div>
           )}
 
@@ -281,6 +281,7 @@ export default function Rescue() {
           <WhatIfSlider
             coreHours={rescueData.core_hours}
             currentSuccess={rescueData.after_success}
+            hoursRemaining={hoursRemaining}
           />
         </div>
       )}

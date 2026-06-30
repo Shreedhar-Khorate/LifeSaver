@@ -40,7 +40,7 @@ def rescue(tasks, subtasks, hours_remaining: float, dna_type: str):
     }
 
 
-def simulate(core_hours: float, extra_hours: float, dna_type: str) -> float:
+def simulate(core_hours: float, extra_hours: float, dna_type: str, hours_remaining: float = 0.0) -> float:
     """
     For the what-if slider. Pure math, instant response.
     
@@ -48,11 +48,13 @@ def simulate(core_hours: float, extra_hours: float, dna_type: str) -> float:
         core_hours: total hours of core subtasks
         extra_hours: how many additional hours the user can add
         dna_type: user's deadline DNA type
+        hours_remaining: the baseline hours remaining
     
     Returns:
         Simulated success probability (5–97%)
     """
-    fit = min(1.0, extra_hours / max(0.1, core_hours))
+    total_hours = hours_remaining + extra_hours
+    fit = min(1.0, total_hours / max(0.1, core_hours))
     bonus = {
         "last_minute":   10,
         "consistent":    5,

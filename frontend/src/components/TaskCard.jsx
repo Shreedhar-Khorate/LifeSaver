@@ -3,9 +3,18 @@ import { useState } from 'react';
 /**
  * TaskCard — Display a task with priority badge, countdown, and status controls
  */
-export default function TaskCard({ task, onStatusChange, onDecompose, onDelete }) {
+export default function TaskCard({ task, onStatusChange, onDecompose, onDelete, onUpdate }) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [decomposing, setDecomposing] = useState(false);
+  const [isCheckboxHovered, setIsCheckboxHovered] = useState(false);
+
+  const [isEditing, setIsEditing] = useState(false);
+  const [editName, setEditName] = useState(task.task_name);
+  const [editHours, setEditHours] = useState(task.estimated_hours);
+  const [editImportance, setEditImportance] = useState(task.importance);
+  const [editDeadline, setEditDeadline] = useState(
+    task.deadline ? new Date(task.deadline).toISOString().substring(0, 16) : ''
+  );
 
   const getTimeLeft = () => {
     if (!task.deadline) return null;
@@ -52,6 +61,33 @@ export default function TaskCard({ task, onStatusChange, onDecompose, onDelete }
     }
   };
 
+  const startEditing = (e) => {
+    e.stopPropagation();
+    setEditName(task.task_name);
+    setEditHours(task.estimated_hours);
+    setEditImportance(task.importance);
+    setEditDeadline(task.deadline ? new Date(task.deadline).toISOString().substring(0, 16) : '');
+    setIsEditing(true);
+  };
+
+  const handleSaveClick = async (e) => {
+    e.stopPropagation();
+    if (!editName.trim()) return;
+
+    try {
+      const isoDeadline = editDeadline ? new Date(editDeadline).toISOString() : null;
+      await onUpdate?.(task.id, {
+        task_name: editName.trim(),
+        estimated_hours: parseFloat(editHours) || 1.0,
+        importance: parseInt(editImportance) || 5,
+        deadline: isoDeadline,
+      });
+      setIsEditing(false);
+    } catch (err) {
+      console.error("Failed to save task details:", err);
+    }
+  };
+
   return (
     <div
       className="glass-card"
@@ -60,100 +96,187 @@ export default function TaskCard({ task, onStatusChange, onDecompose, onDelete }
         transition: 'all var(--transition-normal)',
         cursor: 'pointer',
       }}
-      onClick={() => setIsExpanded(!isExpanded)}
+      onClick={() => !isEditing && setIsExpanded(!isExpanded)}
     >
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '1rem' }}>
-        {/* Status toggle */}
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onStatusChange?.(task.id, isCompleted ? 'pending' : 'completed');
-          }}
-          style={{
-            width: '22px',
-            height: '22px',
-            borderRadius: '50%',
-            border: `2px solid ${isCompleted ? 'var(--accent-green)' : 'var(--border-medium)'}`,
-            background: isCompleted ? 'var(--accent-green)' : 'transparent',
-            cursor: 'pointer',
-            flexShrink: 0,
-            marginTop: '2px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            transition: 'all var(--transition-fast)',
-            fontSize: '0.7rem',
-            color: 'white',
-          }}
-        >
-          {isCompleted && '✓'}
-        </button>
-
-        {/* Task info */}
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-            <span style={{
-              fontWeight: 600,
-              fontSize: '0.95rem',
-              textDecoration: isCompleted ? 'line-through' : 'none',
-            }}>
-              {task.task_name}
-            </span>
-            <span className={`badge badge-${priorityColor}`}>
-              P{Math.round(task.priority_score)}
-            </span>
+      {isEditing ? (
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '1rem', width: '100%' }} onClick={(e) => e.stopPropagation()}>
+          <div style={{ flex: 1, display: 'grid', gap: '0.75rem', minWidth: 0 }}>
+            <div>
+              <label style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: '0.25rem' }}>Task Name</label>
+              <input
+                className="input"
+                style={{ fontSize: '0.9rem', padding: '0.375rem 0.5rem', width: '100%', boxSizing: 'border-box' }}
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                placeholder="Task Name"
+                required
+              />
+            </div>
+            <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+              <div style={{ flex: '1 1 80px', minWidth: '80px' }}>
+                <label style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: '0.25rem' }}>Est. Hours</label>
+                <input
+                  type="number"
+                  className="input"
+                  style={{ fontSize: '0.85rem', padding: '0.375rem 0.5rem', width: '100%', boxSizing: 'border-box' }}
+                  value={editHours}
+                  onChange={(e) => setEditHours(parseFloat(e.target.value) || 0)}
+                  min={0.25}
+                  step={0.25}
+                />
+              </div>
+              <div style={{ flex: '1 1 80px', minWidth: '80px' }}>
+                <label style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: '0.25rem' }}>Importance</label>
+                <input
+                  type="number"
+                  className="input"
+                  style={{ fontSize: '0.85rem', padding: '0.375rem 0.5rem', width: '100%', boxSizing: 'border-box' }}
+                  value={editImportance}
+                  onChange={(e) => setEditImportance(parseInt(e.target.value) || 5)}
+                  min={1}
+                  max={10}
+                />
+              </div>
+              <div style={{ flex: '2 1 180px', minWidth: '180px' }}>
+                <label style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: '0.25rem' }}>Deadline</label>
+                <input
+                  type="datetime-local"
+                  className="input"
+                  style={{ fontSize: '0.85rem', padding: '0.375rem 0.5rem', width: '100%', boxSizing: 'border-box' }}
+                  value={editDeadline}
+                  onChange={(e) => setEditDeadline(e.target.value)}
+                />
+              </div>
+            </div>
           </div>
-
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '1rem',
-            marginTop: '0.5rem',
-            fontSize: '0.8rem',
-            color: 'var(--text-muted)',
-          }}>
-            <span>⏱ {task.estimated_hours}h</span>
-            <span>⭐ {task.importance}/10</span>
-            {timeLeft && (
-              <span style={{
-                color: timeLeft.urgent ? 'var(--accent-red)' : 'var(--text-secondary)',
-                fontWeight: timeLeft.urgent ? 600 : 400,
-                animation: timeLeft.urgent ? 'pulse 2s infinite' : 'none',
-              }}>
-                🕐 {timeLeft.text}
-              </span>
-            )}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', flexShrink: 0, justifyContent: 'center', minHeight: '80px' }}>
+            <button
+              className="btn btn-primary btn-sm"
+              style={{ fontSize: '0.75rem', padding: '0.375rem 0.75rem', width: '100%' }}
+              onClick={handleSaveClick}
+              disabled={!editName.trim()}
+            >
+              Save
+            </button>
+            <button
+              className="btn btn-ghost btn-sm"
+              style={{ fontSize: '0.75rem', padding: '0.375rem 0.75rem', width: '100%' }}
+              onClick={(e) => { e.stopPropagation(); setIsEditing(false); }}
+            >
+              Cancel
+            </button>
           </div>
         </div>
-
-        {/* Action buttons */}
-        <div style={{ display: 'flex', gap: '0.25rem', flexShrink: 0 }}>
-          {!isCompleted && !isDropped && (
-            <button
-              className="btn btn-ghost btn-icon"
-              title="Decompose task"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleDecompose();
-              }}
-              disabled={decomposing}
-            >
-              {decomposing ? <span className="spinner" /> : '🔬'}
-            </button>
-          )}
+      ) : (
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '1rem' }}>
+          {/* Status toggle */}
           <button
-            className="btn btn-ghost btn-icon"
-            title="Delete task"
             onClick={(e) => {
               e.stopPropagation();
-              onDelete?.(task.id);
+              onStatusChange?.(task.id, isCompleted ? 'pending' : 'completed');
             }}
-            style={{ color: 'var(--accent-red)' }}
+            onMouseEnter={() => setIsCheckboxHovered(true)}
+            onMouseLeave={() => setIsCheckboxHovered(false)}
+            style={{
+              width: '24px',
+              height: '24px',
+              borderRadius: '50%',
+              border: `1.5px solid ${isCompleted ? 'var(--accent-gold)' : (isCheckboxHovered ? 'var(--accent-gold)' : 'var(--border-medium)')}`,
+              background: isCompleted ? 'var(--accent-gold)' : 'transparent',
+              boxShadow: !isCompleted && isCheckboxHovered ? '0 0 10px rgba(212, 175, 55, 0.2)' : 'none',
+              cursor: 'pointer',
+              flexShrink: 0,
+              marginTop: '2px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              transition: 'all var(--transition-fast)',
+              fontSize: '0.75rem',
+              fontWeight: 800,
+              color: isCompleted ? '#030303' : 'transparent',
+            }}
+            title={isCompleted ? "Mark as pending" : "Mark as complete"}
           >
-            🗑
+            ✓
           </button>
+
+          {/* Task info */}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <span style={{
+                fontWeight: 600,
+                fontSize: '0.95rem',
+                textDecoration: isCompleted ? 'line-through' : 'none',
+              }}>
+                {task.task_name}
+              </span>
+              <span className={`badge badge-${priorityColor}`}>
+                P{Math.round(task.priority_score)}
+              </span>
+            </div>
+
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '1rem',
+              marginTop: '0.5rem',
+              fontSize: '0.8rem',
+              color: 'var(--text-muted)',
+            }}>
+              <span>Est: {task.estimated_hours}h</span>
+              <span>Imp: {task.importance}/10</span>
+              {timeLeft && (
+                <span style={{
+                  color: timeLeft.urgent ? 'var(--accent-red)' : 'var(--text-secondary)',
+                  fontWeight: timeLeft.urgent ? 600 : 400,
+                  animation: timeLeft.urgent ? 'pulse 2s infinite' : 'none',
+                }}>
+                  Due: {timeLeft.text}
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Action buttons */}
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexShrink: 0 }}>
+            {!isCompleted && !isDropped && (
+              <>
+                <button
+                  className="btn btn-ghost btn-sm"
+                  title="Edit task details"
+                  onClick={startEditing}
+                  style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem', height: 'fit-content' }}
+                >
+                  Edit
+                </button>
+                <button
+                  className="btn btn-ghost btn-sm"
+                  title="Decompose task"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDecompose();
+                  }}
+                  disabled={decomposing}
+                  style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem', height: 'fit-content' }}
+                >
+                  {decomposing ? <span className="spinner" style={{ width: '0.75rem', height: '0.75rem' }} /> : 'Decompose'}
+                </button>
+              </>
+            )}
+            <button
+              className="btn btn-ghost btn-icon"
+              title="Delete task"
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete?.(task.id);
+              }}
+              style={{ color: 'var(--accent-red)', fontSize: '1.25rem', height: '28px', width: '28px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            >
+              ×
+            </button>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Expanded subtasks */}
       {isExpanded && task.subtasks?.length > 0 && (
@@ -172,6 +295,19 @@ export default function TaskCard({ task, onStatusChange, onDecompose, onDelete }
           }}>
             Subtasks
           </div>
+          {task.completion_tip && (
+            <div style={{
+              fontSize: '0.8rem',
+              color: 'var(--text-secondary)',
+              background: 'rgba(212, 175, 55, 0.08)',
+              borderLeft: '2px solid var(--accent-gold)',
+              padding: '0.5rem 0.75rem',
+              borderRadius: 'var(--radius-sm)',
+              marginBottom: '0.75rem',
+            }}>
+              <strong style={{ color: 'var(--accent-gold)', marginRight: '0.25rem', fontSize: '0.75rem', letterSpacing: '0.05em' }}>TIP:</strong> {task.completion_tip}
+            </div>
+          )}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
             {task.subtasks.map((sub) => (
               <div

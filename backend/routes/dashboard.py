@@ -11,30 +11,32 @@ from schemas import DashboardResponse, TaskResponse
 from services.risk_predictor import calculate as calc_risk, success as calc_success
 from services.dna_analyzer import analyze, DNA_CONFIG
 from agents.advisor_agent import get_rescue_tip
+from services.auth import get_current_user
 
 router = APIRouter(prefix="/api/dashboard", tags=["Dashboard"])
 
 
 @router.get("/", response_model=DashboardResponse)
-async def get_dashboard(db: Session = Depends(get_db)):
+async def get_dashboard(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
     """
-    Return aggregated dashboard stats:
+    Return aggregated dashboard stats for the current user:
     - Task counts
     - Risk score + success probability
     - DNA type + emoji + label
     - Motivational tip from Agent 3
     - Upcoming deadlines
     """
-    user = db.query(User).filter(User.id == 1).first()
-
-    all_tasks = db.query(Task).all()
+    all_tasks = db.query(Task).filter(Task.user_id == current_user.id).all()
     completed = [t for t in all_tasks if t.status == "completed"]
     pending = [t for t in all_tasks if t.status == "pending"]
 
     # Analyze DNA from completed tasks
     dna_type = analyze(completed)
-    if user and user.dna_type != dna_type:
-        user.dna_type = dna_type
+    if current_user.dna_type != dna_type:
+        current_user.dna_type = dna_type
         db.commit()
 
     dna_info = DNA_CONFIG.get(dna_type, DNA_CONFIG["consistent"])
@@ -49,7 +51,7 @@ async def get_dashboard(db: Session = Depends(get_db)):
         try:
             tip = await get_rescue_tip(
                 pending=len(pending),
-                hours_left=user.available_hours if user else 6.0,
+                hours_left=current_user.available_hours,
                 dna=dna_type,
             )
         except Exception:
@@ -57,10 +59,14 @@ async def get_dashboard(db: Session = Depends(get_db)):
 
     # Upcoming deadlines (next 48 hours)
     now = datetime.now(timezone.utc)
-    upcoming = [
-        t for t in pending
-        if t.deadline and t.deadline <= now + timedelta(hours=48)
-    ]
+    upcoming = []
+    for t in pending:
+        if t.deadline:
+            deadline = t.deadline
+            if deadline.tzinfo is None:
+                deadline = deadline.replace(tzinfo=timezone.utc)
+            if deadline <= now + timedelta(hours=48):
+                upcoming.append(t)
     upcoming.sort(key=lambda t: t.deadline)
 
     return DashboardResponse(
@@ -75,3 +81,4 @@ async def get_dashboard(db: Session = Depends(get_db)):
         dna_tip=tip,
         upcoming_deadlines=upcoming[:5],
     )
+

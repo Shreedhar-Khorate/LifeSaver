@@ -3,10 +3,10 @@
  */
 
 const DNA_CONFIG = {
-  last_minute:   { emoji: '⚡', label: 'Last Minute Worker',  color: 'yellow' },
-  consistent:    { emoji: '🔥', label: 'Consistent Worker',   color: 'green'  },
-  deep_focus:    { emoji: '🎯', label: 'Deep Focus Worker',   color: 'blue'   },
-  overcommitter: { emoji: '🌀', label: 'Overcommitter',       color: 'red'    },
+  last_minute:   { label: 'Last Minute Worker',  color: 'yellow' },
+  consistent:    { label: 'Consistent Worker',   color: 'green'  },
+  deep_focus:    { label: 'Deep Focus Worker',   color: 'blue'   },
+  overcommitter: { label: 'Overcommitter',       color: 'red'    },
 };
 
 export default function DNABadge({ dnaType = 'consistent', tip = '' }) {
@@ -36,7 +36,7 @@ export default function DNABadge({ dnaType = 'consistent', tip = '' }) {
         gap: '0.75rem',
         marginBottom: tip ? '0.75rem' : 0,
       }}>
-        <span style={{ fontSize: '2rem', lineHeight: 1 }}>{config.emoji}</span>
+        <span style={{ fontSize: '1.5rem', lineHeight: 1, color: 'var(--accent-gold)' }}>•</span>
         <div>
           <div style={{
             fontSize: '0.7rem',
@@ -61,12 +61,11 @@ export default function DNABadge({ dnaType = 'consistent', tip = '' }) {
         <div style={{
           fontSize: '0.85rem',
           color: 'var(--text-secondary)',
-          fontStyle: 'italic',
           paddingTop: '0.75rem',
           borderTop: `1px solid ${colors.border}`,
           lineHeight: 1.5,
         }}>
-          💡 {tip}
+          <strong style={{ color: 'var(--accent-gold)', fontSize: '0.75rem', letterSpacing: '0.05em', marginRight: '0.25rem' }}>ADVICE:</strong> {tip}
         </div>
       )}
     </div>

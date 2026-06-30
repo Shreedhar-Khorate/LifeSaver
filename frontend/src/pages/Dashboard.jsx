@@ -4,6 +4,7 @@ import SuccessGauge from '../components/SuccessGauge';
 import RiskMeter from '../components/RiskMeter';
 import DNABadge from '../components/DNABadge';
 import TaskCard from '../components/TaskCard';
+import WorkloadChart from '../components/WorkloadChart';
 
 /**
  * Dashboard Page — Main overview showing stats, risk, DNA, and task list
@@ -42,6 +43,15 @@ export default function Dashboard() {
     }
   };
 
+  const handleUpdate = async (taskId, updatedData) => {
+    try {
+      await updateTask(taskId, updatedData);
+      fetchData();
+    } catch (err) {
+      console.error('Update failed:', err);
+    }
+  };
+
   const handleDecompose = async (taskId) => {
     try {
       await decomposeTask(taskId);
@@ -52,11 +62,15 @@ export default function Dashboard() {
   };
 
   const handleDelete = async (taskId) => {
+    // Optimistically remove from UI immediately (no flicker)
+    setTasks(prev => prev.filter(t => t.id !== taskId));
+
     try {
       await deleteTask(taskId);
-      fetchData();
     } catch (err) {
       console.error('Delete failed:', err);
+      // Rollback — re-fetch real state from server
+      fetchData();
     }
   };
 
@@ -85,7 +99,7 @@ export default function Dashboard() {
   return (
     <div className="animate-fade-in">
       <div className="page-header">
-        <h1>📊 Dashboard</h1>
+        <h1>Dashboard</h1>
         <p className="page-subtitle">Your deadline crisis command center</p>
       </div>
 
@@ -97,12 +111,12 @@ export default function Dashboard() {
         marginBottom: '2rem',
       }} className="stagger">
         {[
-          { label: 'Total Tasks', value: d.total_tasks || 0, icon: '📋', color: 'var(--accent-purple)' },
-          { label: 'Pending', value: d.pending_tasks || 0, icon: '⏳', color: 'var(--accent-yellow)' },
-          { label: 'Completed', value: d.completed_tasks || 0, icon: '✅', color: 'var(--accent-green)' },
+          { label: 'Total Tasks', value: d.total_tasks || 0, color: 'var(--accent-purple)' },
+          { label: 'Pending', value: d.pending_tasks || 0, color: 'var(--accent-yellow)' },
+          { label: 'Completed', value: d.completed_tasks || 0, color: 'var(--accent-green)' },
         ].map((stat) => (
           <div className="glass-card" key={stat.label} style={{ textAlign: 'center', padding: '1.25rem' }}>
-            <div style={{ fontSize: '1.5rem', marginBottom: '0.25rem' }}>{stat.icon}</div>
+            <div style={{ fontSize: '1rem', marginBottom: '0.5rem', color: 'var(--accent-gold)', fontWeight: 'bold' }}>•</div>
             <div style={{
               fontSize: '1.75rem',
               fontWeight: 800,
@@ -183,6 +197,8 @@ export default function Dashboard() {
         </div>
       </div>
 
+      <WorkloadChart tasks={tasks} />
+
       {/* Task List */}
       <div>
         <div style={{
@@ -191,13 +207,13 @@ export default function Dashboard() {
           alignItems: 'center',
           marginBottom: '1rem',
         }}>
-          <h2>📋 Your Tasks</h2>
-          <button className="btn btn-ghost" onClick={fetchData}>🔄 Refresh</button>
+          <h2>Your Tasks</h2>
+          <button className="btn btn-ghost" onClick={fetchData}>Refresh</button>
         </div>
 
         {tasks.length === 0 ? (
           <div className="empty-state glass-card">
-            <span className="emoji">🎯</span>
+            <span style={{ fontSize: '0.8rem', color: 'var(--text-accent)', letterSpacing: '0.1em', fontWeight: 'bold', display: 'block', marginBottom: '0.5rem' }}>[NO TASKS ACTIVE]</span>
             <h3>No tasks yet</h3>
             <p>Add tasks using the "Add Task" page, or seed demo data from the sidebar.</p>
           </div>
@@ -210,6 +226,7 @@ export default function Dashboard() {
                 onStatusChange={handleStatusChange}
                 onDecompose={handleDecompose}
                 onDelete={handleDelete}
+                onUpdate={handleUpdate}
               />
             ))}
           </div>

@@ -1,11 +1,15 @@
 /**
  * Timeline — Horizontal colored blocks for schedule visualization
  */
+import { useState } from 'react';
+
 export default function Timeline({ slots = [] }) {
+  const [hoveredIndex, setHoveredIndex] = useState(null);
+
   if (slots.length === 0) {
     return (
       <div className="empty-state" style={{ padding: '2rem' }}>
-        <span className="emoji">📅</span>
+        <span style={{ fontSize: '0.8rem', color: 'var(--text-accent)', letterSpacing: '0.1em', fontWeight: 'bold', display: 'block', marginBottom: '0.5rem' }}>[PLAN EMPTY]</span>
         <p>No schedule generated yet. Set your available hours and generate one!</p>
       </div>
     );
@@ -51,7 +55,7 @@ export default function Timeline({ slots = [] }) {
                 width: `${widthPercent}%`,
                 height: '100%',
                 background: color,
-                opacity: 0.85,
+                opacity: hoveredIndex === i ? 1 : 0.85,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -66,8 +70,8 @@ export default function Timeline({ slots = [] }) {
                 cursor: 'default',
                 minWidth: '30px',
               }}
-              onMouseEnter={(e) => e.target.style.opacity = '1'}
-              onMouseLeave={(e) => e.target.style.opacity = '0.85'}
+              onMouseEnter={() => setHoveredIndex(i)}
+              onMouseLeave={() => setHoveredIndex(null)}
             >
               {widthPercent > 12 ? slot.task_name : ''}
             </div>

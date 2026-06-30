@@ -18,7 +18,12 @@ def calculate(tasks, now=None):
             continue
 
         if t.deadline:
-            hours_left = max(0, (t.deadline - now).total_seconds() / 3600)
+            deadline = t.deadline
+            if deadline.tzinfo is None and now.tzinfo is not None:
+                deadline = deadline.replace(tzinfo=timezone.utc)
+            elif deadline.tzinfo is not None and now.tzinfo is None:
+                now = now.replace(tzinfo=timezone.utc)
+            hours_left = max(0.0, (deadline - now).total_seconds() / 3600)
         else:
             hours_left = 48  # No deadline = low urgency
 

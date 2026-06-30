@@ -28,15 +28,26 @@ class AgentType(Enum):
     ADVISOR    = "advisor"     # rescue context → recommendation text
 
 PARSER_PROMPT = """
-Today: {now}. Parse tasks from text. Return JSON array only.
-Schema: [{{"name":"","deadline":"YYYY-MM-DD HH:MM or null","importance":1-10,"estimated_hours":0}}]
-Text: "{text}"
+Today is {now}. Parse tasks from this text: "{text}"
+
+Return a JSON array of parsed tasks using this schema:
+[{{"name":"","deadline":"YYYY-MM-DD HH:MM or null","importance":1-10,"estimated_hours":0.0}}]
+
+Rules:
+1. If a task has a time but no date (e.g. "till 8pm"), assume it is due TODAY (the date in {now}) at that time.
+2. If a task is "due tomorrow" without a specific time, set the deadline to tomorrow's date at 23:59.
+3. If a task is recurring or has no deadline, set the deadline to null.
+4. Output ONLY the raw JSON array. Do not write python code, do not write explanations.
 """
 
 DECOMPOSER_PROMPT = """
-Decompose task into subtasks. Return JSON array only.
-Schema: [{{"name":"","hours":0,"is_core":true}}]
-Set is_core=false for: docs, polish, animations, optional.
+Decompose task into subtasks and provide one tip. Return JSON object only.
+Schema:
+{{
+  "subtasks": [{{"name":"","hours":0.0,"is_core":true}}],
+  "completion_tip": "Short motivational/efficiency tip (max 15 words) for completing this task"
+}}
+Set is_core=false for optional items like docs, polish, animations.
 Task: "{task_name}"
 """
 
@@ -109,10 +120,9 @@ class LLMOrchestrator:
         return ""
 
     async def _call_groq(self, prompt: str) -> str:
-        # Wrap the synchronous groq client call in a thread pool to keep it async-friendly
+        # Use asyncio.to_thread (Python 3.9+) instead of deprecated get_event_loop
         import asyncio
-        loop = asyncio.get_event_loop()
-        
+
         def blocking_call():
             response = self.groq_client.chat.completions.create(
                 model="llama-3.1-8b-instant",   # Fast + generous free tier
@@ -121,64 +131,75 @@ class LLMOrchestrator:
                 temperature=0.1
             )
             return response.choices[0].message.content
-            
-        return await loop.run_in_executor(None, blocking_call)
+
+        return await asyncio.to_thread(blocking_call)
 
     async def _call_gemini(self, prompt: str) -> str:
         import asyncio
-        loop = asyncio.get_event_loop()
-        
+
         def blocking_call():
             model = genai.GenerativeModel("gemini-1.5-flash")
             response = model.generate_content(prompt)
             return response.text
-            
-        return await loop.run_in_executor(None, blocking_call)
+
+        return await asyncio.to_thread(blocking_call)
 
     def _parse_response(self, raw: str) -> dict:
         """Strip markdown fences, extract JSON safely."""
         logger.info(f"Raw LLM Response:\n{raw}")
-        raw = re.sub(r"```(json|python|)?", "", raw, flags=re.IGNORECASE).replace("```", "").strip()
-
-        # Try to find the last complete JSON block by matching brackets from the end
-        end = max(raw.rfind("}"), raw.rfind("]"))
-        if end != -1:
-            closing_char = raw[end]
-            opening_char = "{" if closing_char == "}" else "["
-            
-            open_count = 0
-            for i in range(end, -1, -1):
-                if raw[i] == closing_char:
-                    open_count += 1
-                elif raw[i] == opening_char:
-                    open_count -= 1
-                    
-                if open_count == 0:
-                    json_str = raw[i:end+1]
-                    try:
-                        return json.loads(json_str)
-                    except json.JSONDecodeError:
-                        break # Not valid JSON, fallback
-
-        # Fallback to simple extraction
-        start_obj = raw.find("{")
-        start_arr = raw.find("[")
-        if start_obj == -1: start_obj = len(raw)
-        if start_arr == -1: start_arr = len(raw)
-        start = min(start_obj, start_arr)
         
-        if start == len(raw):
-            logger.warning("No JSON brackets found in response.")
-            return {}
-            
-        end = raw.rfind("}") if start == start_obj else raw.rfind("]")
-        json_str = raw[start:end+1] if end != -1 else raw[start:]
-        
+        # 1. Try to find content inside a ```json block first (highest precedence)
+        json_block_match = re.search(r"```json\s*(.*?)\s*```", raw, flags=re.DOTALL | re.IGNORECASE)
+        if json_block_match:
+            try:
+                return json.loads(json_block_match.group(1).strip())
+            except json.JSONDecodeError:
+                pass
+
+        # 2. Clean up markdown code blocks of other languages (python, js, etc.) to avoid collision
+        cleaned = re.sub(r"```(?:python|py|javascript|js|bash|sh|css|html).*?```", "", raw, flags=re.DOTALL | re.IGNORECASE)
+        cleaned = re.sub(r"```(json)?", "", cleaned, flags=re.IGNORECASE).replace("```", "").strip()
+
+        # Try to parse the entire cleaned string
         try:
-            return json.loads(json_str)
-        except json.JSONDecodeError as e:
-            logger.error(f"Failed to parse JSON string: {json_str}")
-            raise e
+            return json.loads(cleaned)
+        except json.JSONDecodeError:
+            pass
+
+        # Scan for matching opening and closing brackets from left-to-right
+        first_empty = None
+        for start_char, end_char in [('[', ']'), ('{', '}')]:
+            pos = 0
+            while True:
+                start_idx = cleaned.find(start_char, pos)
+                if start_idx == -1:
+                    break
+
+                depth = 0
+                for i in range(start_idx, len(cleaned)):
+                    if cleaned[i] == start_char:
+                        depth += 1
+                    elif cleaned[i] == end_char:
+                        depth -= 1
+                        if depth == 0:
+                            candidate = cleaned[start_idx:i+1]
+                            try:
+                                val = json.loads(candidate)
+                                # If it's empty, keep it as fallback but search for non-empty first
+                                if val == [] or val == {}:
+                                    if first_empty is None:
+                                        first_empty = val
+                                else:
+                                    return val
+                            except json.JSONDecodeError:
+                                pass
+                pos = start_idx + 1
+
+        if first_empty is not None:
+            return first_empty
+
+        logger.error(f"Failed to find or parse JSON in response: {raw}")
+        raise ValueError("Could not parse JSON from LLM response")
 
     def _mock_run(self, agent: AgentType, payload: dict) -> dict:
         """Fallback mock responses to keep app functional in offline/no-key states."""
@@ -211,13 +232,16 @@ class LLMOrchestrator:
             ]
         elif agent == AgentType.DECOMPOSER:
             task_name = payload.get("task_name", "General Task")
-            return [
-                {"name": f"Research {task_name}", "hours": 1.0, "is_core": True},
-                {"name": f"Build {task_name} features", "hours": 2.0, "is_core": True},
-                {"name": f"Test {task_name}", "hours": 1.0, "is_core": True},
-                {"name": f"Document {task_name}", "hours": 0.5, "is_core": False},
-                {"name": f"Polish {task_name} animations", "hours": 0.5, "is_core": False}
-            ]
+            return {
+                "subtasks": [
+                    {"name": f"Research {task_name}", "hours": 1.0, "is_core": True},
+                    {"name": f"Build {task_name} features", "hours": 2.0, "is_core": True},
+                    {"name": f"Test {task_name}", "hours": 1.0, "is_core": True},
+                    {"name": f"Document {task_name}", "hours": 0.5, "is_core": False},
+                    {"name": f"Polish {task_name} animations", "hours": 0.5, "is_core": False}
+                ],
+                "completion_tip": f"Start by drafting the core layout of {task_name} to lock in early progress."
+            }
         elif agent == AgentType.ADVISOR:
             dna = payload.get("dna_type", "consistent")
             tips = {

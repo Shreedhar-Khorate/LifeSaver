@@ -40,10 +40,10 @@ export default function Schedule() {
     try {
       const data = await generateSchedule(availableHours);
       setSlots(data);
-      showToast(`📅 Schedule generated! ${data.length} task(s) in ${availableHours}h`);
+      showToast(`Schedule generated. ${data.length} task(s) scheduled.`);
     } catch (err) {
       setError(err.message);
-      showToast(`❌ ${err.message}`, 'error');
+      showToast(`Error: ${err.message}`, 'error');
     } finally {
       setGenerating(false);
     }
@@ -54,7 +54,7 @@ export default function Schedule() {
   return (
     <div className="animate-fade-in">
       <div className="page-header">
-        <h1>📅 Schedule</h1>
+        <h1>Schedule</h1>
         <p className="page-subtitle">Your optimized time-blocked plan for today</p>
       </div>
 
@@ -91,7 +91,7 @@ export default function Schedule() {
             {generating ? (
               <><span className="spinner" /> Generating...</>
             ) : (
-              <>⚡ Generate Schedule</>
+              <>Generate Schedule</>
             )}
           </button>
 
@@ -119,7 +119,7 @@ export default function Schedule() {
         </div>
       ) : error ? (
         <div className="empty-state glass-card">
-          <span className="emoji">⚠️</span>
+          <span style={{ fontSize: '1.5rem', color: 'var(--accent-red)', fontWeight: 'bold' }}>[ERROR]</span>
           <h3>Error loading schedule</h3>
           <p>{error}</p>
           <button className="btn btn-primary" onClick={fetchSchedule}>Retry</button>
@@ -141,7 +141,7 @@ export default function Schedule() {
           fontSize: '0.85rem',
           color: 'var(--text-secondary)',
         }}>
-          💡 <strong>Tip:</strong> Tasks are ordered by priority score. The most urgent and important tasks come first. Adjust your available hours and regenerate to see how the schedule adapts.
+          <strong>Advice:</strong> Tasks are ordered by priority score. The most urgent and important tasks come first. Adjust your available hours and regenerate to see how the schedule adapts.
         </div>
       )}
 

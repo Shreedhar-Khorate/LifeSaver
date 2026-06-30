@@ -5,10 +5,11 @@ import { simulateRescue } from '../services/api';
  * WhatIfSlider — Drag to simulate success probability with extra hours
  * Calls /rescue/simulate — pure Python, instant response, no AI
  */
-export default function WhatIfSlider({ coreHours = 0, currentSuccess = 0 }) {
+export default function WhatIfSlider({ coreHours = 0, currentSuccess = 0, hoursRemaining = 0 }) {
   const [extraHours, setExtraHours] = useState(0);
   const [simulatedSuccess, setSimulatedSuccess] = useState(currentSuccess);
   const [loading, setLoading] = useState(false);
+  const [showHelp, setShowHelp] = useState(false);
 
   // Debounced simulation
   useEffect(() => {
@@ -20,7 +21,7 @@ export default function WhatIfSlider({ coreHours = 0, currentSuccess = 0 }) {
     const timer = setTimeout(async () => {
       setLoading(true);
       try {
-        const result = await simulateRescue(extraHours);
+        const result = await simulateRescue(extraHours, hoursRemaining);
         setSimulatedSuccess(result.success_probability);
       } catch (err) {
         console.error('Simulation failed:', err);
@@ -30,7 +31,7 @@ export default function WhatIfSlider({ coreHours = 0, currentSuccess = 0 }) {
     }, 200);
 
     return () => clearTimeout(timer);
-  }, [extraHours, currentSuccess]);
+  }, [extraHours, currentSuccess, hoursRemaining]);
 
   const getColor = (v) => {
     if (v >= 70) return 'var(--accent-green)';
@@ -49,14 +50,39 @@ export default function WhatIfSlider({ coreHours = 0, currentSuccess = 0 }) {
         marginBottom: '1rem',
       }}>
         <div>
-          <div style={{
-            fontSize: '0.75rem',
-            fontWeight: 600,
-            color: 'var(--text-muted)',
-            textTransform: 'uppercase',
-            letterSpacing: '0.05em',
-          }}>
-            What-If Simulator
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <span style={{
+              fontSize: '0.75rem',
+              fontWeight: 600,
+              color: 'var(--text-muted)',
+              textTransform: 'uppercase',
+              letterSpacing: '0.05em',
+            }}>
+              What-If Simulator
+            </span>
+            <button
+              type="button"
+              onClick={() => setShowHelp(!showHelp)}
+              style={{
+                background: 'rgba(212, 175, 55, 0.1)',
+                border: '1px solid var(--border-accent)',
+                color: 'var(--accent-gold)',
+                cursor: 'pointer',
+                fontSize: '0.75rem',
+                width: '18px',
+                height: '18px',
+                borderRadius: '50%',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: 0,
+                transition: 'all var(--transition-fast)',
+                fontWeight: 'bold',
+              }}
+              title="What is this?"
+            >
+              ?
+            </button>
           </div>
           <div style={{
             fontSize: '0.85rem',
@@ -87,6 +113,44 @@ export default function WhatIfSlider({ coreHours = 0, currentSuccess = 0 }) {
           )}
         </div>
       </div>
+
+      {showHelp && (
+        <div style={{
+          background: 'rgba(255, 255, 255, 0.01)',
+          border: '1px solid var(--border-subtle)',
+          borderRadius: 'var(--radius-sm)',
+          padding: '0.75rem 1rem',
+          marginBottom: '1rem',
+          fontSize: '0.8rem',
+          lineHeight: '1.4',
+          color: 'var(--text-secondary)',
+          animation: 'fadeIn 0.3s ease-out',
+        }}>
+          <p style={{ marginBottom: '0.5rem', fontWeight: 600, color: 'var(--text-accent)', fontSize: '0.75rem', letterSpacing: '0.05em' }}>
+            HOW THE SIMULATOR WORKS
+          </p>
+          <p style={{ marginBottom: '0.5rem' }}>
+            When you enter <strong>Rescue Mode</strong>, LifeSaver drops optional subtasks (like polish or animations) to fit your core work in.
+          </p>
+          <p style={{ marginBottom: '0.5rem' }}>
+            Drag this slider to simulate adding extra working hours to your day (e.g. by canceling other plans).
+          </p>
+          <div style={{ display: 'grid', gap: '0.375rem', marginTop: '0.5rem', borderTop: '1px solid var(--border-subtle)', paddingTop: '0.5rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', background: 'var(--accent-green)', flexShrink: 0 }} />
+              <span><strong>70%+ (Safe):</strong> Highly likely to complete core tasks.</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', background: 'var(--accent-yellow)', flexShrink: 0 }} />
+              <span><strong>40%-69% (Risk):</strong> Tight timeline. High chance of rushing or failure.</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', background: 'var(--accent-red)', flexShrink: 0 }} />
+              <span><strong>&lt;40% (Danger):</strong> Inadequate time. You must carve out more hours.</span>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div style={{ marginBottom: '0.5rem' }}>
         <input

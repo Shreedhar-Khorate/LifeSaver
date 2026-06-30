@@ -37,7 +37,7 @@ export default function AddTask() {
     try {
       const tasks = await parseTasks(text);
       setParsedTasks(tasks);
-      showToast(`🎯 Parsed ${tasks.length} task(s) from your text!`);
+      showToast(`Parsed ${tasks.length} task(s) from your text.`);
     } catch (err) {
       setParseError(err.message);
       setMode('manual'); // Auto-fallback to manual
@@ -55,30 +55,30 @@ export default function AddTask() {
         deadline: manualForm.deadline ? new Date(manualForm.deadline).toISOString() : null,
       };
       await createTask(data);
-      showToast('✅ Task created successfully!');
+      showToast('Task created successfully.');
       setManualForm({ task_name: '', deadline: '', importance: 5, estimated_hours: 1.0 });
     } catch (err) {
-      showToast(`❌ Failed: ${err.message}`, 'error');
+      showToast(`Failed: ${err.message}`, 'error');
     }
   };
 
   const handleDecompose = async (taskId) => {
     try {
-      const subtasks = await decomposeTask(taskId);
-      // Update parsed task with subtasks
+      const task = await decomposeTask(taskId);
+      // Update parsed task with the full updated task object (includes completion_tip)
       setParsedTasks(prev =>
-        prev.map(t => t.id === taskId ? { ...t, subtasks } : t)
+        prev.map(t => t.id === taskId ? task : t)
       );
-      showToast('🔬 Task decomposed into subtasks!');
+      showToast('Task decomposed into subtasks.');
     } catch (err) {
-      showToast(`❌ Decompose failed: ${err.message}`, 'error');
+      showToast(`Decompose failed: ${err.message}`, 'error');
     }
   };
 
   return (
     <div className="animate-fade-in">
       <div className="page-header">
-        <h1>➕ Add Tasks</h1>
+        <h1>Add Tasks</h1>
         <p className="page-subtitle">Add tasks with AI or manually</p>
       </div>
 
@@ -94,8 +94,8 @@ export default function AddTask() {
         width: 'fit-content',
       }}>
         {[
-          { key: 'ai', label: '🤖 AI Parse', },
-          { key: 'manual', label: '✏️ Manual', },
+          { key: 'ai', label: 'AI Parse', },
+          { key: 'manual', label: 'Manual', },
         ].map(({ key, label }) => (
           <button
             key={key}
@@ -110,16 +110,28 @@ export default function AddTask() {
 
       {/* AI Parse Mode */}
       {mode === 'ai' && (
-        <div className="animate-fade-in-up">
-          <div className="glass-card" style={{ marginBottom: '1.5rem' }}>
+        <div 
+          className="animate-fade-in-up"
+          style={{
+            display: 'grid',
+            gridTemplateColumns: parsedTasks.length > 0 ? '1fr 1.2fr' : '1fr',
+            gap: '1.5rem',
+            alignItems: 'start',
+          }}
+        >
+          <div className="glass-card" style={{ marginBottom: parsedTasks.length > 0 ? 0 : '1.5rem' }}>
             <label>Describe your tasks in natural language</label>
             <textarea
               className="textarea"
               placeholder={`Try something like:\n"I have a hackathon PPT due tonight at 8pm, super important. Also need to finish my AI assignment by tomorrow, and I have a Google interview next Monday. Oh and I should go to the gym today."`}
               value={text}
               onChange={(e) => setText(e.target.value)}
-              style={{ marginBottom: '1rem', minHeight: '150px' }}
+              maxLength={2000}
+              style={{ marginBottom: '0.375rem', minHeight: '150px' }}
             />
+            <div style={{ fontSize: '0.75rem', color: text.length > 1800 ? 'var(--accent-red)' : 'var(--text-muted)', textAlign: 'right', marginBottom: '1rem' }}>
+              {text.length}/2000
+            </div>
             <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
               <button
                 className="btn btn-primary btn-lg"
@@ -129,12 +141,12 @@ export default function AddTask() {
                 {parsing ? (
                   <><span className="spinner" /> Parsing with AI...</>
                 ) : (
-                  <>🧠 Parse with AI</>
+                  <>Parse with AI</>
                 )}
               </button>
               {parseError && (
                 <span style={{ fontSize: '0.85rem', color: 'var(--accent-red)' }}>
-                  ⚠️ {parseError} — Try manual mode
+                  {parseError} — Try manual mode
                 </span>
               )}
             </div>
@@ -149,7 +161,7 @@ export default function AddTask() {
                 alignItems: 'center',
                 marginBottom: '1rem',
               }}>
-                <h2>🎯 Parsed Tasks ({parsedTasks.length})</h2>
+                <h2>Parsed Tasks ({parsedTasks.length})</h2>
                 <span className="badge badge-green">Saved to database</span>
               </div>
 
@@ -165,10 +177,10 @@ export default function AddTask() {
                         fontSize: '0.8rem',
                         color: 'var(--text-muted)',
                       }}>
-                        <span>⏱ {task.estimated_hours}h</span>
-                        <span>⭐ {task.importance}/10</span>
+                        <span>Est: {task.estimated_hours}h</span>
+                        <span>Imp: {task.importance}/10</span>
                         {task.deadline && (
-                          <span>📅 {new Date(task.deadline).toLocaleString()}</span>
+                          <span>Due: {new Date(task.deadline).toLocaleString()}</span>
                         )}
                         <span className="badge badge-purple">P{Math.round(task.priority_score)}</span>
                       </div>
@@ -178,7 +190,7 @@ export default function AddTask() {
                       style={{ fontSize: '0.8rem' }}
                       onClick={() => handleDecompose(task.id)}
                     >
-                      🔬 Decompose
+                      Decompose
                     </button>
                   </div>
 
@@ -192,6 +204,21 @@ export default function AddTask() {
                       <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.5rem' }}>
                         Subtasks
                       </div>
+                      
+                      {task.completion_tip && (
+                        <div style={{
+                          fontSize: '0.8rem',
+                          color: 'var(--text-secondary)',
+                          background: 'rgba(212, 175, 55, 0.08)',
+                          borderLeft: '2px solid var(--accent-gold)',
+                          padding: '0.5rem 0.75rem',
+                          borderRadius: 'var(--radius-sm)',
+                          marginBottom: '0.75rem',
+                        }}>
+                          <strong style={{ color: 'var(--accent-gold)', marginRight: '0.25rem', fontSize: '0.75rem', letterSpacing: '0.05em' }}>TIP:</strong> {task.completion_tip}
+                        </div>
+                      )}
+
                       {task.subtasks.map((sub) => (
                         <div key={sub.id} style={{
                           display: 'flex',
@@ -277,7 +304,7 @@ export default function AddTask() {
               onClick={handleManualCreate}
               disabled={!manualForm.task_name.trim()}
             >
-              ✅ Create Task
+              Create Task
             </button>
           </div>
         </div>

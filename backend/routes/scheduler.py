@@ -10,26 +10,34 @@ from models import Task, Schedule, User
 from schemas import ScheduleGenerateRequest, ScheduleSlotResponse
 from services.priority_engine import rank
 from services.scheduler_engine import build
+from services.auth import get_current_user
 
 router = APIRouter(prefix="/api/schedule", tags=["Schedule"])
 
 
 @router.get("/today", response_model=list[ScheduleSlotResponse])
-def get_today_schedule(db: Session = Depends(get_db)):
-    """Return today's saved schedule slots."""
+def get_today_schedule(
+    db: Session = Depends(get_db), 
+    current_user: User = Depends(get_current_user)
+):
+    """Return today's saved schedule slots for current user."""
     today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
     today_end = today_start.replace(hour=23, minute=59, second=59)
 
     slots = (
         db.query(Schedule)
-        .filter(Schedule.start_time >= today_start, Schedule.start_time <= today_end)
+        .filter(
+            Schedule.user_id == current_user.id,
+            Schedule.start_time >= today_start, 
+            Schedule.start_time <= today_end
+        )
         .order_by(Schedule.start_time)
         .all()
     )
 
     result = []
     for slot in slots:
-        task = db.query(Task).filter(Task.id == slot.task_id).first()
+        task = db.query(Task).filter(Task.id == slot.task_id, Task.user_id == current_user.id).first()
         hours = (slot.end_time - slot.start_time).total_seconds() / 3600
         result.append(ScheduleSlotResponse(
             id=slot.id,
@@ -45,24 +53,29 @@ def get_today_schedule(db: Session = Depends(get_db)):
 
 
 @router.post("/generate", response_model=list[ScheduleSlotResponse])
-def generate_schedule(req: ScheduleGenerateRequest, db: Session = Depends(get_db)):
+def generate_schedule(
+    req: ScheduleGenerateRequest, 
+    db: Session = Depends(get_db), 
+    current_user: User = Depends(get_current_user)
+):
     """
-    Generate a schedule from pending tasks:
+    Generate a schedule from pending tasks for current user:
     1. Rank tasks by priority
     2. Pack into available hours
     3. Save to DB
     """
-    # Get pending tasks and rank them
-    pending = db.query(Task).filter(Task.status == "pending").all()
+    # Get pending tasks for current user and rank them
+    pending = db.query(Task).filter(Task.status == "pending", Task.user_id == current_user.id).all()
     ranked = rank(pending)
 
     # Build schedule slots
     slots = build(ranked, req.available_hours)
 
-    # Clear old schedule for today
+    # Clear old schedule for today for current user
     today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
     today_end = today_start.replace(hour=23, minute=59, second=59)
     db.query(Schedule).filter(
+        Schedule.user_id == current_user.id,
         Schedule.start_time >= today_start,
         Schedule.start_time <= today_end
     ).delete()
@@ -71,6 +84,7 @@ def generate_schedule(req: ScheduleGenerateRequest, db: Session = Depends(get_db
     result = []
     for slot in slots:
         sched = Schedule(
+            user_id=current_user.id,
             task_id=slot["task_id"],
             start_time=slot["start_time"],
             end_time=slot["end_time"],
@@ -89,9 +103,7 @@ def generate_schedule(req: ScheduleGenerateRequest, db: Session = Depends(get_db
         ))
 
     # Update user's available hours
-    user = db.query(User).filter(User.id == 1).first()
-    if user:
-        user.available_hours = req.available_hours
-
+    current_user.available_hours = req.available_hours
     db.commit()
     return result
+
